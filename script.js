@@ -1,13 +1,20 @@
 const board = document.getElementById('board');
 const status = document.getElementById('status');
 const resetButton = document.getElementById('reset');
+const winnerPopup = document.getElementById('winner-popup');
+const winnerAvatar = document.getElementById('winner-avatar');
+const winnerText = document.getElementById('winner-text');
 
 let cells = Array(9).fill(null);
+let player1 = null;
+let player2 = null;
 let currentPlayer = null;
-let opponent = null;
 let gameActive = false;
 
-// Corrected image paths & player names
+// Character Selection
+const player1Buttons = document.querySelectorAll('#player1-selection .player-btn');
+const player2Buttons = document.querySelectorAll('#player2-selection .player-btn');
+
 const images = {
     "Zaya": "images/myzaya.png",
     "Marga": "images/marga.png",
@@ -16,52 +23,72 @@ const images = {
     "Hera": "images/hera.png"
 };
 
-// Character Selection
-const characterButtons = document.querySelectorAll('.character-btn');
-characterButtons.forEach(button => {
+// Player selection
+player1Buttons.forEach(button => {
     button.addEventListener('click', () => {
-        if (!currentPlayer) {
-            currentPlayer = button.dataset.character;
-            const remainingPlayers = Object.keys(images).filter(p => p !== currentPlayer);
-            opponent = remainingPlayers[Math.floor(Math.random() * remainingPlayers.length)];
-            gameActive = true;
-            status.innerText = `${currentPlayer} vs ${opponent} - ${currentPlayer}'s turn`;
+        if (gameActive) return;
+        player1 = button.dataset.character;
+        highlightSelection(player1Buttons, player1);
+        checkStartGame();
+    });
+});
+
+player2Buttons.forEach(button => {
+    button.addEventListener('click', () => {
+        if (gameActive) return;
+        if (player1 && button.dataset.character !== player1) {
+            player2 = button.dataset.character;
+            highlightSelection(player2Buttons, player2);
+            checkStartGame();
         }
     });
 });
 
-// Initialize board
-function renderBoard() {
-    board.innerHTML = '';
-    cells.forEach((cell, index) => {
-        const cellDiv = document.createElement('div');
-        cellDiv.classList.add('cell');
-        cellDiv.dataset.index = index;
-        if (cell) {
-            const img = document.createElement('img');
-            img.src = images[cell];
-            img.style.width = '90%';
-            img.style.height = '90%';
-            img.style.objectFit = 'contain';
-            cellDiv.appendChild(img);
+// Highlight selected character
+function highlightSelection(buttons, selectedCharacter) {
+    buttons.forEach(btn => {
+        btn.classList.remove('selected');
+        if (btn.dataset.character === selectedCharacter) {
+            btn.classList.add('selected');
         }
-        cellDiv.addEventListener('click', handleMove);
-        board.appendChild(cellDiv);
     });
 }
 
-// Handle a move & switch players
+// Check if both players are selected
+function checkStartGame() {
+    if (player1 && player2) {
+        gameActive = true;
+        currentPlayer = player1;
+        status.innerText = `${player1} vs ${player2} - ${currentPlayer}'s turn`;
+        initializeBoard();
+    }
+}
+
+// Initialize board
+function initializeBoard() {
+    board.innerHTML = '';
+    cells = Array(9).fill(null);
+    for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        cell.addEventListener('click', handleMove);
+        board.appendChild(cell);
+    }
+}
+
+// Handle a move
 function handleMove(event) {
     const index = event.target.dataset.index;
     if (!gameActive || cells[index]) return;
 
     cells[index] = currentPlayer;
-    renderBoard();
+    event.target.innerHTML = `<img src="${images[currentPlayer]}" style="width:90%; height:90%; object-fit:contain;">`;
+
     if (checkWinner()) return;
 
-    // Alternate between selected player & opponent
-    currentPlayer = currentPlayer === opponent ? document.querySelector(".character-btn[data-character]:not([data-character='" + opponent + "'])").dataset.character : opponent;
-    status.innerText = `${currentPlayer}'s turn`;
+    currentPlayer = currentPlayer === player1 ? player2 : player1;
+    status.innerText = `${player1} vs ${player2} - ${currentPlayer}'s turn`;
 }
 
 // Check for winner
@@ -75,9 +102,10 @@ function checkWinner() {
     for (let pattern of winPatterns) {
         const [a, b, c] = pattern;
         if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
-            status.innerText = `${cells[a]} wins!`;
             gameActive = false;
-            showWinnerPopup(cells[a]);
+            winnerAvatar.src = images[cells[a]];
+            winnerText.innerText = `${cells[a]} Wins!`;
+            winnerPopup.style.display = 'block';
             return true;
         }
     }
@@ -91,27 +119,16 @@ function checkWinner() {
     return false;
 }
 
-// Show winner popup
-function showWinnerPopup(winner) {
-    const winnerPopup = document.getElementById('winner-popup');
-    const winnerAvatar = document.getElementById('winner-avatar');
-    const winnerText = document.getElementById('winner-text');
-
-    winnerAvatar.src = images[winner];
-    winnerText.innerText = `${winner} Wins!`;
-    winnerPopup.classList.remove('hidden');
-}
-
 // Reset game
 resetButton.addEventListener('click', () => {
-    cells = Array(9).fill(null);
-    currentPlayer = null;
-    opponent = null;
+    initializeBoard();
     gameActive = false;
-    status.innerText = "Select a character to start";
-    document.getElementById('winner-popup').classList.add('hidden');
-    renderBoard();
+    winnerPopup.style.display = 'none';
+    player1 = null;
+    player2 = null;
+    status.innerText = "Select players to start";
+    player1Buttons.forEach(btn => btn.classList.remove('selected'));
+    player2Buttons.forEach(btn => btn.classList.remove('selected'));
 });
 
-// Initialize game
-renderBoard();
+initializeBoard();
